@@ -1,200 +1,234 @@
+
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>跳跃小球游戏</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人习惯记录工具</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        * {
+        /* 全局样式 */
+        body {
+            font-family: 'Arial', sans-serif;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            background-color: black;
-            color: white;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
+            min-height: 100vh;
+            color: #fff;
         }
 
-        #gameContainer {
-            display: none; /* 初始隐藏游戏内容 */
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 500px;
+            animation: fadeIn 1.5s ease-in-out;
+        }
+
+        .container h2 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: #dfe6e9;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 1rem;
+            margin-bottom: 5px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.8);
+            font-size: 1rem;
+            color: #2d3436;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            color: #fff;
+        }
+
+        #generate-chart {
+            background: #6c5ce7;
+            margin-top: 10px;
+        }
+
+        #generate-chart:hover {
+            background: #a29bfe;
+        }
+
+        #reset-data {
+            background: #d63031;
+            margin-top: 10px;
+        }
+
+        #reset-data:hover {
+            background: #ff7675;
+        }
+
+        #chart-container {
+            margin-top: 20px;
+            display: none;
         }
 
         canvas {
-            background-color: #3498db;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            max-width: 100%;
         }
 
-        .score {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 24px;
-            color: white;
-        }
-
-        .game-over {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 30px;
-            color: white;
-            text-align: center;
-            display: none;
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <canvas id="gameCanvas" width="400" height="600"></canvas>
-        <div class="score">得分: 0</div>
-        <div class="game-over">游戏结束!<br>点击重新开始</div>
+    <div class="container">
+        <h1>个人习惯记录工具</h1>
+        <h2>记录你的每日时间分配，生成精美图表！</h2>
+        <div class="input-group">
+            <label for="sleep">睡眠时间（小时）：</label>
+            <input type="number" id="sleep" min="0" max="24" placeholder="请输入每天睡觉的时间">
+        </div>
+        <div class="input-group">
+            <label for="study">学习时间（小时）：</label>
+            <input type="number" id="study" min="0" max="24" placeholder="请输入每天学习的时间">
+        </div>
+        <div class="input-group">
+            <label for="exercise">锻炼时间（小时）：</label>
+            <input type="number" id="exercise" min="0" max="24" placeholder="请输入每天锻炼的时间">
+        </div>
+        <div class="input-group">
+            <label for="entertainment">娱乐时间（小时）：</label>
+            <input type="number" id="entertainment" min="0" max="24" placeholder="请输入每天娱乐的时间">
+        </div>
+        <button id="generate-chart">生成图表</button>
+        <button id="reset-data">重置</button>
+        <div id="chart-container">
+            <canvas id="habit-chart"></canvas>
+        </div>
     </div>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const gameContainer = document.getElementById('gameContainer');
-        const scoreElement = document.querySelector('.score');
-        const gameOverElement = document.querySelector('.game-over');
+        const sleepInput = document.getElementById("sleep");
+        const studyInput = document.getElementById("study");
+        const exerciseInput = document.getElementById("exercise");
+        const entertainmentInput = document.getElementById("entertainment");
+        const generateChartButton = document.getElementById("generate-chart");
+        const resetButton = document.getElementById("reset-data");
+        const chartContainer = document.getElementById("chart-container");
+        const chartCanvas = document.getElementById("habit-chart");
 
-        let ball = {
-            x: canvas.width / 4,
-            y: canvas.height - 50,
-            radius: 20,
-            velocityY: 0,
-            gravity: 0.5,
-            jumpPower: -12
-        };
+        let habitChart;
 
-        let obstacles = [];
-        let score = 0;
-        let obstacleSpeed = 3;
-        let gameOver = false;
+        function generateChart() {
+            const sleep = parseInt(sleepInput.value) || 0;
+            const study = parseInt(studyInput.value) || 0;
+            const exercise = parseInt(exerciseInput.value) || 0;
+            const entertainment = parseInt(entertainmentInput.value) || 0;
 
-        function createObstacle() {
-            const width = Math.random() * (canvas.width / 2) + 30;
-            const height = 20;
-            const x = canvas.width;
-            const y = canvas.height - height;
-            obstacles.push({ x, y, width, height });
-        }
+            const total = sleep + study + exercise + entertainment;
 
-        function drawBall() {
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-            ctx.fillStyle = '#e74c3c';
-            ctx.fill();
-            ctx.closePath();
-        }
-
-        function drawObstacles() {
-            ctx.fillStyle = '#2ecc71';
-            for (let obstacle of obstacles) {
-                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            if (total > 24) {
+                alert("每天的总时间不能超过24小时！");
+                return;
             }
-        }
 
-        function updateObstacles() {
-            for (let i = 0; i < obstacles.length; i++) {
-                let obstacle = obstacles[i];
-                obstacle.x -= obstacleSpeed;
+            if (total === 0) {
+                alert("请至少输入一项时间！");
+                return;
+            }
 
-                if (obstacle.x + obstacle.width < 0) {
-                    obstacles.splice(i, 1);
-                    i--;
-                    score++;
-                    scoreElement.textContent = `得分: ${score}`;
+            const data = {
+                labels: ["睡眠", "学习", "锻炼", "娱乐"],
+                datasets: [{
+                    data: [sleep, study, exercise, entertainment],
+                    backgroundColor: ["#0984e3", "#00cec9", "#fd79a8", "#ffeaa7"],
+                    hoverBackgroundColor: ["#74b9ff", "#55efc4", "#fab1a0", "#fdcb6e"]
+                }]
+            };
 
-                    // 每次积分增加时弹出提示
-                    setTimeout(() => {
-                        alert(`恭喜你功德+1又让王一普帅了一点加油！！当前得分: ${score}`);
-                    }, 10);
-
-                    if (score % 5 === 0) {
-                        obstacleSpeed += 0.5;
+            const options = {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: "top",
+                        labels: {
+                            color: "#fff",
+                            font: {
+                                size: 14
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                const hours = context.raw;
+                                return `${context.label}: ${hours}小时`;
+                            }
+                        }
                     }
                 }
+            };
+
+            if (habitChart) {
+                habitChart.destroy();
+            }
+
+            habitChart = new Chart(chartCanvas, {
+                type: "pie",
+                data: data,
+                options: options
+            });
+
+            chartContainer.style.display = "block";
+        }
+
+        function resetData() {
+            sleepInput.value = "";
+            studyInput.value = "";
+            exerciseInput.value = "";
+            entertainmentInput.value = "";
+            chartContainer.style.display = "none";
+            if (habitChart) {
+                habitChart.destroy();
             }
         }
 
-        function collisionDetection() {
-            for (let obstacle of obstacles) {
-                if (ball.x + ball.radius > obstacle.x &&
-                    ball.x - ball.radius < obstacle.x + obstacle.width &&
-                    ball.y + ball.radius > obstacle.y) {
-                    gameOver = true;
-                    gameOverElement.style.display = 'block';
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        function gameLoop() {
-            if (gameOver) return;
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            ball.velocityY += ball.gravity;
-            ball.y += ball.velocityY;
-
-            if (ball.y + ball.radius >= canvas.height) {
-                ball.y = canvas.height - ball.radius;
-                ball.velocityY = 0;
-            }
-
-            drawBall();
-            updateObstacles();
-            drawObstacles();
-
-            if (collisionDetection()) return;
-
-            requestAnimationFrame(gameLoop);
-        }
-
-        canvas.addEventListener('click', () => {
-            if (gameOver) {
-                gameOver = false;
-                ball.y = canvas.height - 50;
-                ball.velocityY = 0;
-                obstacles = [];
-                score = 0;
-                obstacleSpeed = 3;
-                scoreElement.textContent = `得分: ${score}`;
-                gameOverElement.style.display = 'none';
-                gameLoop();
-            } else {
-                ball.velocityY = ball.jumpPower;
-            }
-        });
-
-        function startGame() {
-            gameContainer.style.display = 'block'; // 显示游戏内容
-            setInterval(createObstacle, 2000);
-            gameLoop();
-        }
-
-        // 游戏逻辑
-        alert("游戏玩法：点击屏幕让小球跳跃，避免碰到障碍物，看看你能得多少分！");
-        
-        const userInput = prompt("如果你想玩这个游戏请输入：王一普很帅");
-
-        if (userInput === "王一普很帅") {
-            alert("验证成功！游戏开始！");
-            startGame();
-        } else {
-            alert("验证失败！请刷新页面重新输入。");
-        }
+        generateChartButton.addEventListener("click", generateChart);
+        resetButton.addEventListener("click", resetData);
     </script>
 </body>
 </html>
